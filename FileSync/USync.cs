@@ -80,6 +80,7 @@ namespace FileSync
         {
             var log = new StringBuilder();
             int moveFileCnt = 0;
+            int fileCnt = 0;
 
             srcRootPath = srcRoot;
             destRootPath = destRoot;
@@ -93,6 +94,8 @@ namespace FileSync
                 destFiles = GetFilesInfo(destRoot, p);
 
                 renameCopyList = new List<string>();
+
+                p.Report(0);
 
                 // destFilesのファイルをsrcFilesから探す
                 // 見つかったらsrcFilesのルートと同じ場所に移動する
@@ -141,6 +144,8 @@ namespace FileSync
                             }
                         }
                     }
+                    fileCnt++;
+                    p.Report((int)((float)fileCnt / (float)destFiles.Count * 100.0f));
                 }
 
                 // .tmpをつけてコピーしたファイルを元の名前に戻す
@@ -148,6 +153,8 @@ namespace FileSync
                 {
                     File.Move(fileName + ".tmp", fileName);
                 }
+
+                p.Report(100);
 
                 log.AppendLine(moveFileCnt + "個のファイルを移動しました。");
             }
@@ -168,8 +175,11 @@ namespace FileSync
             //"C:\test"以下の".txt"ファイルをすべて取得する
             DirectoryInfo di = new System.IO.DirectoryInfo(rootDir);
             FileInfo[] files = di.GetFiles("*.*", System.IO.SearchOption.AllDirectories);
+            int processCnt = 0;
 
             List<UFileInfo> list = new List<UFileInfo>();
+
+            p.Report(0);
 
             foreach (FileInfo f in files)
             {
@@ -182,6 +192,9 @@ namespace FileSync
                 string filePath = Path.GetDirectoryName(f.FullName).Replace(rootDir, "");
                 UFileInfo ufi = new UFileInfo(fileName, filePath, f.Length, f.LastWriteTime, getFileMD5(f.FullName));
                 list.Add(ufi);
+
+                processCnt++;
+                p.Report((int)((float)processCnt / (float)files.Length * 100.0f));
             }
             return list;
         }
@@ -197,8 +210,11 @@ namespace FileSync
             //"C:\test"以下の".txt"ファイルをすべて取得する
             DirectoryInfo di = new DirectoryInfo(rootDir);
             FileInfo[] files = di.GetFiles("*.*", System.IO.SearchOption.AllDirectories);
+            int processCnt = 0;
 
             var dic = new Dictionary<string, UFileInfo>();
+
+            p.Report(0);
 
             foreach (FileInfo f in files)
             {
@@ -220,6 +236,8 @@ namespace FileSync
                 {
                     log.AppendLine(Path.Combine(filePath, fileName) + "は既に存在します。(" + Path.Combine(dic[key].filePath, dic[key].fileName) + "と同じファイル)");
                 }
+                processCnt++;
+                p.Report((int)((float)processCnt / (float)files.Length * 100.0f));
             }
             return dic;
         }
