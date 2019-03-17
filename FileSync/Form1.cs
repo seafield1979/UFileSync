@@ -29,7 +29,7 @@ namespace FileSync
         private void buttonExec_Click(object sender, EventArgs e)
         {
             // Progressクラスのインスタンスを作成
-            var p = new Progress<int>(ShowProgress);
+            var p = new Progress<MyProgress>(ShowProgress);
 
             mSync = new USync();
             textBox3.Text = mSync.Main(textBox1.Text, textBox2.Text, 1, p);
@@ -44,7 +44,7 @@ namespace FileSync
             labelProgress.Text = "処理中";
 
             // Progressクラスのインスタンスを作成
-            var p = new Progress<int>(ShowProgress);
+            var p = new Progress<MyProgress>(ShowProgress);
 
             // バックグラウンドで実行
             try
@@ -99,10 +99,10 @@ namespace FileSync
         }
 
 
-        private void ShowProgress(int percent)
+        private void ShowProgress(MyProgress myProgress)
         {
-            labelProgress.Text = percent + "%完了";
-            progressBar1.Value = percent;
+            labelProgress.Text = myProgress.Title + " " + myProgress.Progress + "%完了";
+            progressBar1.Value = myProgress.Progress;
         }
 
         private void buttonCancel_Click(object sender, EventArgs e)

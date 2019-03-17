@@ -6,6 +6,32 @@ using System.IO;
 
 namespace FileSync
 {
+    // 進捗表示用の情報
+    public class MyProgress
+    {
+        private string title;
+
+        public string Title
+        {
+            get { return title; }
+            set { title = value; }
+        }
+
+        private int progress;
+
+        public int Progress
+        {
+            get { return progress; }
+            set { progress = value; }
+        }
+
+        public MyProgress(string title, int progress)
+        {
+            this.title = title;
+            this.progress = progress;
+        }
+    }
+
     class UFileInfo
     {
         //
@@ -76,11 +102,12 @@ namespace FileSync
         /// <param name="destRoot"></param>
         /// <param name="mode">1:移動 / 2:移動なし</param>
         /// <returns></returns>
-        public string Main(string srcRoot, string destRoot, int mode, IProgress<int> p)
+        public string Main(string srcRoot, string destRoot, int mode, IProgress<MyProgress> p)
         {
             var log = new StringBuilder();
             int moveFileCnt = 0;
             int fileCnt = 0;
+            var myProgress = new MyProgress("Main", 0);
 
             srcRootPath = srcRoot;
             destRootPath = destRoot;
@@ -95,7 +122,7 @@ namespace FileSync
 
                 renameCopyList = new List<string>();
 
-                p.Report(0);
+                p.Report(myProgress);
 
                 // destFilesのファイルをsrcFilesから探す
                 // 見つかったらsrcFilesのルートと同じ場所に移動する
@@ -103,7 +130,7 @@ namespace FileSync
                 {
                     if (cancelFlag)
                     {
-                        throw new Exception("キャンセルされました");
+                        throw new Exception("Canceled");
                     }
 
                     if (srcFiles.ContainsKey(ufi.hashMD5))
@@ -125,7 +152,7 @@ namespace FileSync
                                     {
                                         Directory.CreateDirectory(dirPath);
                                     }
-                                    log.AppendLine("フォルダを作成: " + dirPath);
+                                    log.AppendLine("Create Folder: " + dirPath);
                                 }
 
                                 if (mode == 1)
@@ -139,13 +166,14 @@ namespace FileSync
                                     }
                                     File.Move(path1, path2);
                                 }
-                                log.AppendLine("ファイル移動: " + ufi.filePath + @"\" + ufi.fileName + " から " + ufi2.filePath + @"\" + ufi2.fileName);
+                                log.AppendLine("Move File: From " + ufi.filePath + @"\" + ufi.fileName + " To " + ufi2.filePath + @"\" + ufi2.fileName);
                                 moveFileCnt++;
                             }
                         }
                     }
                     fileCnt++;
-                    p.Report((int)((float)fileCnt / (float)destFiles.Count * 100.0f));
+                    myProgress.Progress = (int)((float)fileCnt / (float)destFiles.Count * 100.0f);
+                    p.Report(myProgress);
                 }
 
                 // .tmpをつけてコピーしたファイルを元の名前に戻す
@@ -154,13 +182,14 @@ namespace FileSync
                     File.Move(fileName + ".tmp", fileName);
                 }
 
-                p.Report(100);
+                myProgress.Progress = 100;
+                p.Report(myProgress);
 
                 log.AppendLine(moveFileCnt + "個のファイルを移動しました。");
             }
             catch (Exception e)
             {
-                log.AppendLine(e.Message);
+                log.AppendLine("Error: " + e.Message);
             }
             return log.ToString();
         }
@@ -170,16 +199,17 @@ namespace FileSync
         /// </summary>
         /// <param name="rootDir">ルートディレクトリパス</param>
         /// <returns>ファイルリスト(UFileInfo)</returns>
-        public List<UFileInfo> GetFilesInfo(string rootDir, IProgress<int> p)
+        public List<UFileInfo> GetFilesInfo(string rootDir, IProgress<MyProgress> p)
         {
             //"C:\test"以下の".txt"ファイルをすべて取得する
             DirectoryInfo di = new System.IO.DirectoryInfo(rootDir);
             FileInfo[] files = di.GetFiles("*.*", System.IO.SearchOption.AllDirectories);
+            var myProgress = new MyProgress("GetFilesInfo", 0);
             int processCnt = 0;
 
             List<UFileInfo> list = new List<UFileInfo>();
 
-            p.Report(0);
+            p.Report(myProgress);
 
             foreach (FileInfo f in files)
             {
@@ -194,7 +224,8 @@ namespace FileSync
                 list.Add(ufi);
 
                 processCnt++;
-                p.Report((int)((float)processCnt / (float)files.Length * 100.0f));
+                myProgress.Progress = (int)((float)processCnt / (float)files.Length * 100.0f);
+                p.Report(myProgress);
             }
             return list;
         }
@@ -205,16 +236,17 @@ namespace FileSync
         /// <param name="rootDir">ルートディレクトリパス</param>
         /// <param name="log">ログ出力先</param>
         /// <returns>ファイル辞書データ(ファイルのハッシュがキー)</returns>
-        public Dictionary<string, UFileInfo> GetFilesInfo2(string rootDir, StringBuilder log, IProgress<int> p)
+        public Dictionary<string, UFileInfo> GetFilesInfo2(string rootDir, StringBuilder log, IProgress<MyProgress> p)
         {
             //"C:\test"以下の".txt"ファイルをすべて取得する
             DirectoryInfo di = new DirectoryInfo(rootDir);
             FileInfo[] files = di.GetFiles("*.*", System.IO.SearchOption.AllDirectories);
+            var myProgress = new MyProgress("GetFilesInfo2", 0);
             int processCnt = 0;
 
             var dic = new Dictionary<string, UFileInfo>();
 
-            p.Report(0);
+            p.Report(myProgress);
 
             foreach (FileInfo f in files)
             {
@@ -237,13 +269,16 @@ namespace FileSync
                     log.AppendLine(Path.Combine(filePath, fileName) + "は既に存在します。(" + Path.Combine(dic[key].filePath, dic[key].fileName) + "と同じファイル)");
                 }
                 processCnt++;
-                p.Report((int)((float)processCnt / (float)files.Length * 100.0f));
+                myProgress.Progress = (int)((float)processCnt / (float)files.Length * 100.0f);
+                p.Report(myProgress);
             }
             return dic;
         }
 
         /// <summary>
-        /// ファイルからMD5形式のハッシュ値を取得する
+        /// ファイルからMD5形式のハッシュ値を取得する。
+        /// ※ファイル全体からハッシュ値を取得するのは重すぎるため、先頭中間末尾からそれぞれ1KByteずつ
+        /// サンプルしている。
         /// </summary>
         /// <param name="fileName"></param>
         /// <returns>１６進数のハッシュ文字列</returns>
@@ -258,20 +293,13 @@ namespace FileSync
             byte[] fileData;
 
             // ファイル全体のMD5は重いため簡易版に置き換え
-#if false
             //MD5CryptoServiceProviderオブジェクトを作成
             System.Security.Cryptography.MD5 md5 =
                 System.Security.Cryptography.MD5.Create();
 
-            //ハッシュ値を計算する
-            byte[] bs = md5.ComputeHash(fs);
-
-            //リソースを解放する
-            md5.Clear();
-#else
-            // ファイルの先頭、中間、末尾からそれぞれ8byteを読み込む(計24byte)
+            // ファイルの先頭、中間、末尾からそれぞれ1KByteを読み込む(計3KByte)
             long fileLen = fs.Length;
-            const int chankSize = 8;
+            const int chankSize = 1024;
             if (fileLen >= 2147483648)
             {
                 fileLen = 2147483648;
@@ -286,20 +314,21 @@ namespace FileSync
                 fs.Read(fileData, chankSize, chankSize);
                 fs.Seek(fileLen - chankSize, SeekOrigin.Begin);
                 fs.Read(fileData, chankSize * 2, chankSize);
-
             }
             else
             {
                 fileData = new byte[fileLen];
                 fs.Read(fileData, 0, (int)fileLen);
             }
-#endif
+            byte[] bs = md5.ComputeHash(fileData);
+            md5.Clear();
+
             //ファイルを閉じる
             fs.Close();
 
             //byte型配列を16進数の文字列に変換
             StringBuilder result = new StringBuilder();
-            foreach (byte b in fileData)
+            foreach (byte b in bs)
             {
                 result.Append(b.ToString("x2"));
             }
